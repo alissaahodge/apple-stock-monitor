@@ -1,4 +1,10 @@
 import unittest
+import tempfile
+import os
+import json
+from pathlib import Path
+from unittest.mock import patch
+import monitor
 from monitor import parse_inventory, PARTS
 
 
@@ -26,6 +32,43 @@ class InventoryTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             parse_inventory(bad, PARTS)
 
+
+    def test_alert_contains_store_and_directions(self):
+        hits = parse_inventory(payload("available"), PARTS)
+        with patch.dict(os.environ, {"ZIP_CODE": "95050", "SMTP_HOST": "test", "SMTP_USER": "sender@example.com", "SMTP_PASSWORD": "test", "ALERT_EMAIL": "recipient@example.com"}):
+            class SMTP:
+                def __init__(self, *args, **kwargs): pass
+                def __enter__(self): return self
+                def __exit__(self, *args): pass
+                def login(self, *args): pass
+                def send_message(self, msg):
+                    self.msg = msg
+                    self_test.messages.append(msg)
+            self_test = self
+            self.messages = []
+            with patch("monitor.smtplib.SMTP_SSL", SMTP):
+                monitor.send_email(hits)
+            content = self.messages[0].get_content()
+            self.assertIn("Test Store", content)
+            self.assertIn("google.com/maps/search", content)
+            self.assertIn("buy-iphone/iphone-duo", content)
+
+    def test_stock_transition_emails_only_once(self):
+        hits = parse_inventory(payload("available"), PARTS)
+        with tempfile.TemporaryDirectory() as tmp:
+            with patch.object(monitor, "STATE", Path(tmp) / "state.json"), patch.object(monitor, "fetch_inventory", return_value=hits), patch.object(monitor, "send_email") as email, patch("sys.argv", ["monitor.py"]), patch.dict(os.environ, {"ZIP_CODE": "95050", "SMTP_HOST": "test", "SMTP_USER": "test", "SMTP_PASSWORD": "test", "ALERT_EMAIL": "test"}):
+                monitor.main()
+                monitor.main()
+                email.assert_called_once()
+
+    def test_smtp_failure_does_not_save_state(self):
+        hits = parse_inventory(payload("available"), PARTS)
+        with tempfile.TemporaryDirectory() as tmp:
+            state = Path(tmp) / "state.json"
+            with patch.object(monitor, "STATE", state), patch.object(monitor, "fetch_inventory", return_value=hits), patch.object(monitor, "send_email", side_effect=RuntimeError("SMTP failed")), patch("sys.argv", ["monitor.py"]), patch.dict(os.environ, {"ZIP_CODE": "95050", "SMTP_HOST": "test", "SMTP_USER": "test", "SMTP_PASSWORD": "test", "ALERT_EMAIL": "test"}):
+                with self.assertRaises(RuntimeError):
+                    monitor.main()
+                self.assertFalse(state.exists())
 
 if __name__ == "__main__":
     unittest.main()

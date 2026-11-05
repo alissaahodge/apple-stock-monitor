@@ -15,7 +15,7 @@ PARTS = {"MK1E4LL/A": "256GB Star White"}
 ENDPOINT = "https://www.apple.com/shop/retail/pickup-message"
 PRODUCT_URL = "https://www.apple.com/shop/buy-iphone/iphone-duo"
 STATE = Path(os.environ.get("STATE_FILE", ".stock-state.json"))
-USER_AGENT = "Mozilla/5.0 AppleStockMonitor/1.0"
+USER_AGENT = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 Chrome/130.0.0.0 Safari/537.36"
 
 
 def parse_inventory(payload, requested):
@@ -29,12 +29,12 @@ def parse_inventory(payload, requested):
     except (KeyError, TypeError) as exc:
         raise ValueError("Unexpected Apple inventory response") from exc
     found = {}
-    checked = set()
     for store in stores:
         code = store.get("storeNumber")
         availability = store.get("partsAvailability")
         if not code or not isinstance(availability, dict):
             raise ValueError("Malformed store availability")
+        print(f"Checking Apple Store: {store.get('storeName', code)} ({code})")
         for part in requested:
             detail = availability.get(part)
             if not isinstance(detail, dict):
@@ -43,11 +43,8 @@ def parse_inventory(payload, requested):
             if status not in ("available", "unavailable", "ineligible"):
                 raise ValueError(f"Unrecognized pickup status {status!r} at {code}")
             key = f"{code}:{part}"
-            checked.add(key)
             if status == "available":
-                found[key] = {"store": store.get("storeName", code), "part": part, "capacity": requested[part]}
-    if not checked:
-        raise ValueError("No products checked")
+                found[key] = {"store": store.get("storeName", code), "part": part, "capacity": requested[part], "store_number": code}
     return found
 
 
@@ -66,21 +63,24 @@ def fetch_inventory(zip_code, parts=PARTS):
     return parse_inventory(payload, parts)
 
 
-def send_email(hits, *, test=False):
+def send_email(hits, *, test=False, failure=False):
     host = os.environ["SMTP_HOST"]
     port = int(os.environ.get("SMTP_PORT") or "465")
     username = os.environ["SMTP_USER"]
     password = os.environ["SMTP_PASSWORD"]
     receiver = os.environ["ALERT_EMAIL"]
     msg = EmailMessage()
-    msg["Subject"] = "Apple stock monitor TEST" if test else "iPhone Duo Star White available for pickup!"
+    msg["Subject"] = ("ACTION REQUIRED: Apple stock monitor failed" if failure else
+                      "Apple stock monitor TEST" if test else
+                      "IN STOCK: iPhone Duo 256GB Star White for pickup!")
     msg["From"] = username
     msg["To"] = receiver
     msg.set_content(
-        ("Test email from Apple Stock Monitor." if test else
+        ("The scheduled stock monitor failed and may miss availability. Check https://github.com/alissaahodge/apple-stock-monitor/actions . This does not mean sold out." if failure else
+         "Test email from Apple Stock Monitor." if test else
          "Star White 256GB iPhone Duo available for pickup:\n" +
-         "\n".join(f"- {v['capacity']} at {v['store']} ({v['part']})" for v in hits.values()))
-        + "\n\nCheck availability immediately: " + PRODUCT_URL
+         "\n".join(f"- {v['capacity']} at {v['store']} ({v['part']})\n  Directions: https://www.google.com/maps/search/?api=1&query={urllib.parse.quote('Apple ' + v['store'] + ' 95050')}" for v in hits.values()))
+        + "\n\nOrder immediately (choose the listed pickup store): " + PRODUCT_URL + "\nConfirm unlocked / Connect Later at checkout."
     )
     phase = "connect"
     try:
@@ -113,12 +113,22 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--test-email", action="store_true")
     parser.add_argument("--validate-only", action="store_true")
+    parser.add_argument("--simulate-available", action="store_true")
+    parser.add_argument("--failure-email", action="store_true")
     args = parser.parse_args()
+    if args.failure_email:
+        send_email({}, failure=True)
+        print("Failure diagnostic email sent (see GitHub Actions for error)")
+        return
+    if args.simulate_available:
+        send_email({"TEST:MK1E4LL/A": {"store": "SIMULATED Apple Store (not real stock)", "store_number": "TEST", "part": "MK1E4LL/A", "capacity": "256GB Star White"}})
+        print("SIMULATED stock alert sent")
+        return
     if args.test_email:
         send_email({}, test=True)
         print("Test email sent")
         return
-    zip_code = os.environ.get("ZIP_CODE", "94086")
+    zip_code = os.environ.get("ZIP_CODE", "95050")
     if not (zip_code.isdigit() and len(zip_code) == 5):
         raise ValueError("ZIP_CODE must be a five-digit US ZIP code")
     hits = fetch_inventory(zip_code)
@@ -129,6 +139,8 @@ def main():
     if missing:
         raise RuntimeError("Email secrets are not configured: " + ", ".join(missing))
     previous = json.loads(STATE.read_text()) if STATE.exists() else {}
+    if not isinstance(previous, dict):
+        raise ValueError("Saved state must be an object")
     new_hits = {key: val for key, val in hits.items() if key not in previous}
     if new_hits:
         send_email(new_hits)
