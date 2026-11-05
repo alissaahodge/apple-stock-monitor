@@ -12,7 +12,7 @@ from email.message import EmailMessage
 from pathlib import Path
 
 PARTS = {"MK1E4LL/A": "256GB Star White"}
-ENDPOINT = "https://www.apple.com/shop/fulfillment-messages"
+ENDPOINT = "https://www.apple.com/shop/retail/pickup-message"
 PRODUCT_URL = "https://www.apple.com/shop/buy-iphone/iphone-duo"
 STATE = Path(os.environ.get("STATE_FILE", ".stock-state.json"))
 USER_AGENT = "Mozilla/5.0 AppleStockMonitor/1.0"
@@ -21,7 +21,7 @@ USER_AGENT = "Mozilla/5.0 AppleStockMonitor/1.0"
 def parse_inventory(payload, requested):
     """Fail closed on unexpected payload shapes, never equating errors to sold out."""
     try:
-        stores = payload["body"]["content"]["pickupMessage"]["stores"]
+        stores = payload["body"].get("stores")\n        if stores is None:\n            stores = payload["body"]["content"]["pickupMessage"]["stores"]
         if not isinstance(stores, list) or not stores:
             raise ValueError("Apple returned no store records")
     except (KeyError, TypeError) as exc:
@@ -38,7 +38,7 @@ def parse_inventory(payload, requested):
             if not isinstance(detail, dict):
                 raise ValueError(f"Missing availability for {part} at {code}")
             status = detail.get("pickupDisplay")
-            if status not in ("available", "unavailable"):
+            if status not in ("available", "unavailable", "ineligible"):
                 raise ValueError(f"Unrecognized pickup status {status!r} at {code}")
             key = f"{code}:{part}"
             checked.add(key)
