@@ -46,8 +46,8 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           if gh release view monitor-state >/dev/null 2>&1; then
-            gh release download monitor-state --pattern stock-state.json --dir .
-            mv stock-state.json .stock-state.json
+            gh release download monitor-state --pattern default.stock-state.json --dir .
+            mv default.stock-state.json .stock-state.json
           else
             echo "No previous state release (first run)"
           fi
