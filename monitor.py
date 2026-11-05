@@ -82,10 +82,18 @@ def send_email(hits, *, test=False):
          "\n".join(f"- {v['capacity']} at {v['store']} ({v['part']})" for v in hits.values()))
         + "\n\nCheck availability immediately: " + PRODUCT_URL
     )
-    with smtplib.SMTP(host, port, timeout=20) as smtp:
-        smtp.starttls()
-        smtp.login(username, password)
-        smtp.send_message(msg)
+    phase = "connect"
+    try:
+        with smtplib.SMTP(host, port, timeout=20) as smtp:
+            phase = "STARTTLS"
+            smtp.starttls()
+            phase = "authentication"
+            smtp.login(username, password)
+            phase = "send"
+            smtp.send_message(msg)
+    except (OSError, smtplib.SMTPException) as exc:
+        # Do not log server replies, usernames, or credentials.
+        raise RuntimeError(f"Yahoo SMTP failed during {phase}: {type(exc).__name__}") from None
 
 
 def main():
