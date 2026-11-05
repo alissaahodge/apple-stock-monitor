@@ -68,7 +68,7 @@ def fetch_inventory(zip_code, parts=PARTS):
 
 def send_email(hits, *, test=False):
     host = os.environ["SMTP_HOST"]
-    port = int(os.environ.get("SMTP_PORT") or "587")
+    port = int(os.environ.get("SMTP_PORT") or "465")
     username = os.environ["SMTP_USER"]
     password = os.environ["SMTP_PASSWORD"]
     receiver = os.environ["ALERT_EMAIL"]
@@ -84,9 +84,16 @@ def send_email(hits, *, test=False):
     )
     phase = "connect"
     try:
-        with smtplib.SMTP(host, port, timeout=20) as smtp:
-            phase = "STARTTLS"
-            smtp.starttls()
+        if port == 465:
+            phase = "implicit TLS connection"
+            client = smtplib.SMTP_SSL(host, port, timeout=20)
+        else:
+            phase = "connection"
+            client = smtplib.SMTP(host, port, timeout=20)
+        with client as smtp:
+            if port != 465:
+                phase = "STARTTLS"
+                smtp.starttls()
             phase = "authentication"
             smtp.login(username, password)
             phase = "send"
