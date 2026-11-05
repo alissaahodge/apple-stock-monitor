@@ -1,5 +1,9 @@
 name: Apple pickup stock monitor
 on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/stock-monitor.yml'
   workflow_dispatch:
     inputs:
       validate_only:
@@ -53,7 +57,7 @@ jobs:
         run: |
           if [ "$TEST_EMAIL" = "true" ]; then
             python monitor.py --test-email
-          elif [ "$VALIDATE" = "true" ]; then
+          elif [ "$VALIDATE" = "true" ] || [ "${{ github.event_name }}" = "push" ]; then
             python monitor.py --validate-only
           else
             python monitor.py
