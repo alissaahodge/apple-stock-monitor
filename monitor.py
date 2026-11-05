@@ -98,6 +98,12 @@ def send_email(hits, *, test=False):
             smtp.login(username, password)
             phase = "send"
             smtp.send_message(msg)
+    except smtplib.SMTPSenderRefused as exc:
+        # The numeric SMTP status is safe to log; the server text may contain addresses.
+        raise RuntimeError(
+            f"Yahoo rejected the envelope sender (SMTP {exc.smtp_code}). "
+            "Confirm SMTP_USER is the full Yahoo mailbox address, not an alias."
+        ) from None
     except (OSError, smtplib.SMTPException) as exc:
         # Do not log server replies, usernames, or credentials.
         raise RuntimeError(f"Yahoo SMTP failed during {phase}: {type(exc).__name__}") from None
