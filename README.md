@@ -1,36 +1,29 @@
-# Apple Stock Monitor
+# Apple pickup stock monitor
 
-Checks Apple's US Apple Store pickup inventory for **iPhone Duo, Star White, 256GB only**, near Sunnyvale, California (ZIP 94086). Uses Python standard library and GitHub Actions.
+Checks Apple's pickup inventory for **iPhone Duo, Star White, 256GB only** (US part number `MK1E4LL/A`) using **Santa Clara ZIP 95050**. The part number matches current third-party retail listings, but Apple checkout is the authority for unlocked/Connect Later eligibility.
 
-## Product
+## What gets checked
 
-- Color: **Star White**
-- Storage: **256GB only**
-- US part number: `MK1E4LL/A` (provisional until Apple's live listing can be confirmed)
-- Desired purchase: **factory unlocked / connect later**. The checker filters by part number; verify unlocked terms at checkout.
-- Apple product page: https://www.apple.com/shop/buy-iphone/iphone-duo
+The Apple pickup API returns nearby Apple Stores for ZIP **95050**. The monitor checks **every store returned** for the exact part number and logs each store name and number in the GitHub Actions run. It does not search all Bay Area stores or restrict to a single store.
 
-## Important status
+Scheduled checks are requested every five minutes. GitHub may delay or skip scheduled jobs, and inventory may disappear between checks. The API is unofficial and may change. **No five-minute polling system can guarantee detecting a short-lived restock.**
 
-The GitHub Actions workflow checks every five minutes **on a best-effort schedule**. Scheduled runs are configured to check stock and send alerts after merge, but will fail until email secrets are configured and Apple's endpoint is confirmed reachable from GitHub-hosted runners. Before enabling email alerts, we must verify Apple's inventory response works on GitHub-hosted runners and the SMTP test succeeds. Apple's cloud-IP restrictions may prevent GitHub Actions from reaching the endpoint. Errors are reported as errors, never as a 'sold out' result.
+## What the email contains
 
-## Email setup
+When a store newly becomes available, the email names the store and includes a **Google Maps directions/search link** and [Apple's iPhone Duo order page](https://www.apple.com/shop/buy-iphone/iphone-duo). The link opens Apple's product page, not a reserved cart. Choose Star White, 256GB, pickup at the listed store, and verify unlocked/Connect Later at checkout. No email is sent on repeated checks while the same store remains continuously available. If it sells out and restocks, another alert is sent.
 
-Set repository Actions secrets under **Settings → Secrets and variables → Actions**:
-- `SMTP_HOST` (e.g. `smtp.gmail.com`)
-- `SMTP_USER` (sender email)
-- `SMTP_PASSWORD` (app password or mail provider token; not your regular password)
-- `ALERT_EMAIL` (recipient)
-- Optional `SMTP_PORT` (default 587)
+## Email configuration
 
-Do not commit credentials.
+Configure GitHub Actions secrets: `SMTP_HOST=smtp.mail.yahoo.com`, `SMTP_USER` (full authorized Yahoo sender address), `SMTP_PASSWORD` (Yahoo app password), `ALERT_EMAIL` (recipient). Optional `SMTP_PORT` defaults to **465 (implicit TLS)**; 587 uses STARTTLS. Never commit secrets.
 
-## Testing and activation
+## Tests
 
-1. Run `python -m unittest discover -s tests -v` locally.
-2. After merge, go to **Actions → Apple pickup stock monitor → Run workflow** and leave `validate_only` enabled. Check logs for `Validated Apple response`.
-3. With SMTP secrets configured, run the workflow with `test_email=true` to verify email delivery.
-4. **Only after both validations**, scheduled runs now invoke the stock checker and persist alert state using a GitHub release asset. If Apple's endpoint rejects GitHub runners, switch to an allowed runtime rather than treating the failure as sold out.
-5. Inspect the actual Apple checkout page before purchasing.
+In Actions → Apple pickup stock monitor → Run workflow:
 
-The endpoint `https://www.apple.com/shop/fulfillment-messages` is unofficial and may change or block GitHub runners. A five-minute schedule may also be delayed or skipped.
+- **Validate only** (default): check live Apple inventory and log which stores are returned, no email.
+- **Test email**: test Yahoo SMTP.
+- **Simulate available**: send a clearly marked *simulated* stock alert showing the real email format without pretending stock exists or modifying state.
+
+The workflow runs unit tests and stores the previous inventory in a GitHub release asset. If the saved state cannot be restored, the job fails rather than silently losing its deduplication history. On a scheduled failure, it attempts to email a failure notice. This cannot notify about jobs GitHub never starts, and a broken SMTP service can also prevent failure emails.
+
+View [workflow runs](https://github.com/alissaahodge/apple-stock-monitor/actions).
