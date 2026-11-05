@@ -63,7 +63,7 @@ jobs:
             python monitor.py
           fi
       - name: Save state for next check
-        if: ${{ success() && !inputs.validate_only && !inputs.test_email }}
+        if: ${{ success() && github.event_name != 'push' && !inputs.validate_only && !inputs.test_email }}
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
