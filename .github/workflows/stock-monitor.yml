@@ -4,6 +4,8 @@ on:
     branches: [main]
     paths:
       - '.github/workflows/stock-monitor.yml'
+      - 'monitor.py'
+      - 'tests/**'
   workflow_dispatch:
     inputs:
       validate_only:
@@ -12,6 +14,10 @@ on:
         default: true
       test_email:
         description: 'Send an email test (requires secrets)'
+        type: boolean
+        default: false
+      simulate_available:
+        description: 'Send a simulated in-stock email (no real stock required)'
         type: boolean
         default: false
   schedule:
@@ -39,14 +45,15 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          if gh release download monitor-state --pattern stock-state.json --dir . 2>/dev/null; then
+          if gh release view monitor-state >/dev/null 2>&1; then
+            gh release download monitor-state --pattern stock-state.json --dir .
             mv stock-state.json .stock-state.json
           else
-            echo "No previous state found"
+            echo "No previous state release (first run)"
           fi
       - name: Check pickup availability
         env:
-          ZIP_CODE: '94086'
+          ZIP_CODE: '95050'
           SMTP_HOST: ${{ secrets.SMTP_HOST }}
           SMTP_PORT: ${{ secrets.SMTP_PORT }}
           SMTP_USER: ${{ secrets.SMTP_USER }}
@@ -54,16 +61,19 @@ jobs:
           ALERT_EMAIL: ${{ secrets.ALERT_EMAIL }}
           VALIDATE: ${{ inputs.validate_only }}
           TEST_EMAIL: ${{ inputs.test_email }}
+          SIMULATE: ${{ inputs.simulate_available }}
         run: |
           if [ "$TEST_EMAIL" = "true" ]; then
             python monitor.py --test-email
+          elif [ "$SIMULATE" = "true" ]; then
+            python monitor.py --simulate-available
           elif [ "$VALIDATE" = "true" ] || [ "${{ github.event_name }}" = "push" ]; then
             python monitor.py --validate-only
           else
             python monitor.py
           fi
       - name: Save state for next check
-        if: ${{ success() && github.event_name != 'push' && !inputs.validate_only && !inputs.test_email }}
+        if: ${{ success() && github.event_name != 'push' && !inputs.validate_only && !inputs.test_email && !inputs.simulate_available }}
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -72,3 +82,12 @@ jobs:
           else
             gh release create monitor-state .stock-state.json#stock-state.json --title "Monitor state" --notes "Internal state for deduplicating alerts" --latest=false
           fi
+      - name: Email on scheduled check failure
+        if: ${{ failure() && github.event_name == 'schedule' }}
+        env:
+          SMTP_HOST: ${{ secrets.SMTP_HOST }}
+          SMTP_PORT: ${{ secrets.SMTP_PORT }}
+          SMTP_USER: ${{ secrets.SMTP_USER }}
+          SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
+          ALERT_EMAIL: ${{ secrets.ALERT_EMAIL }}
+        run: python monitor.py --failure-email
