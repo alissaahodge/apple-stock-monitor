@@ -21,7 +21,9 @@ USER_AGENT = "Mozilla/5.0 AppleStockMonitor/1.0"
 def parse_inventory(payload, requested):
     """Fail closed on unexpected payload shapes, never equating errors to sold out."""
     try:
-        stores = payload["body"].get("stores")\n        if stores is None:\n            stores = payload["body"]["content"]["pickupMessage"]["stores"]
+        stores = payload["body"].get("stores")
+        if stores is None:
+            stores = payload["body"]["content"]["pickupMessage"]["stores"]
         if not isinstance(stores, list) or not stores:
             raise ValueError("Apple returned no store records")
     except (KeyError, TypeError) as exc:
@@ -66,7 +68,7 @@ def fetch_inventory(zip_code, parts=PARTS):
 
 def send_email(hits, *, test=False):
     host = os.environ["SMTP_HOST"]
-    port = int(os.environ.get("SMTP_PORT", "587"))
+    port = int(os.environ.get("SMTP_PORT") or "587")
     username = os.environ["SMTP_USER"]
     password = os.environ["SMTP_PASSWORD"]
     receiver = os.environ["ALERT_EMAIL"]
@@ -76,9 +78,13 @@ def send_email(hits, *, test=False):
     msg["To"] = receiver
     msg.set_content(
         ("Test email from Apple Stock Monitor." if test else
-         "Star White 256GB iPhone Duo available for pickup:\n" +
-         "\n".join(f"- {v['capacity']} at {v['store']} ({v['part']})" for v in hits.values()))
-        + "\n\nCheck availability immediately: " + PRODUCT_URL
+         "Star White 256GB iPhone Duo available for pickup:
+" +
+         "
+".join(f"- {v['capacity']} at {v['store']} ({v['part']})" for v in hits.values()))
+        + "
+
+Check availability immediately: " + PRODUCT_URL
     )
     with smtplib.SMTP(host, port, timeout=20) as smtp:
         smtp.starttls()
