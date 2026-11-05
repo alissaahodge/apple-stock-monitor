@@ -63,18 +63,21 @@ def fetch_inventory(zip_code, parts=PARTS):
     return parse_inventory(payload, parts)
 
 
-def send_email(hits, *, test=False):
+def send_email(hits, *, test=False, failure=False):
     host = os.environ["SMTP_HOST"]
     port = int(os.environ.get("SMTP_PORT") or "465")
     username = os.environ["SMTP_USER"]
     password = os.environ["SMTP_PASSWORD"]
     receiver = os.environ["ALERT_EMAIL"]
     msg = EmailMessage()
-    msg["Subject"] = "Apple stock monitor TEST" if test else "IN STOCK: iPhone Duo 256GB Star White for pickup!"
+    msg["Subject"] = ("ACTION REQUIRED: Apple stock monitor failed" if failure else
+                      "Apple stock monitor TEST" if test else
+                      "IN STOCK: iPhone Duo 256GB Star White for pickup!")
     msg["From"] = username
     msg["To"] = receiver
     msg.set_content(
-        ("Test email from Apple Stock Monitor." if test else
+        ("The scheduled stock monitor failed and may miss availability. Check https://github.com/alissaahodge/apple-stock-monitor/actions . This does not mean sold out." if failure else
+         "Test email from Apple Stock Monitor." if test else
          "Star White 256GB iPhone Duo available for pickup:\n" +
          "\n".join(f"- {v['capacity']} at {v['store']} ({v['part']})\n  Directions: https://www.google.com/maps/search/?api=1&query={urllib.parse.quote('Apple ' + v['store'] + ' 95050')}" for v in hits.values()))
         + "\n\nOrder immediately (choose the listed pickup store): " + PRODUCT_URL + "\nConfirm unlocked / Connect Later at checkout."
@@ -114,7 +117,7 @@ def main():
     parser.add_argument("--failure-email", action="store_true")
     args = parser.parse_args()
     if args.failure_email:
-        send_email({}, test=True)
+        send_email({}, failure=True)
         print("Failure diagnostic email sent (see GitHub Actions for error)")
         return
     if args.simulate_available:
