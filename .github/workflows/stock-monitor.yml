@@ -20,8 +20,6 @@ on:
         description: 'Send a simulated in-stock email (no real stock required)'
         type: boolean
         default: false
-  schedule:
-    - cron: '2/5 * * * *'
 
 permissions:
   contents: write
