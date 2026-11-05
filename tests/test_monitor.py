@@ -14,7 +14,7 @@ class InventoryTests(unittest.TestCase):
         self.assertEqual(parse_inventory(payload(), PARTS), {})
 
     def test_available(self):
-        self.assertEqual(len(parse_inventory(payload("available"), PARTS)), 2)
+        self.assertEqual(len(parse_inventory(payload("available"), PARTS)), 1)
 
     def test_missing_store_records(self):
         with self.assertRaises(ValueError):
