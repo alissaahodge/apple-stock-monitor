@@ -11,7 +11,7 @@ import urllib.request
 from email.message import EmailMessage
 from pathlib import Path
 
-PARTS = {"MK1E4LL/A": "256GB Star White", "MK1G4LL/A": "512GB Star White"}
+PARTS = {"MK1E4LL/A": "256GB Star White"}
 ENDPOINT = "https://www.apple.com/shop/fulfillment-messages"
 PRODUCT_URL = "https://www.apple.com/shop/buy-iphone/iphone-duo"
 STATE = Path(os.environ.get("STATE_FILE", ".stock-state.json"))
@@ -76,7 +76,7 @@ def send_email(hits, *, test=False):
     msg["To"] = receiver
     msg.set_content(
         ("Test email from Apple Stock Monitor." if test else
-         "Star White iPhone Duo available for pickup:\n" +
+         "Star White 256GB iPhone Duo available for pickup:\n" +
          "\n".join(f"- {v['capacity']} at {v['store']} ({v['part']})" for v in hits.values()))
         + "\n\nCheck availability immediately: " + PRODUCT_URL
     )
