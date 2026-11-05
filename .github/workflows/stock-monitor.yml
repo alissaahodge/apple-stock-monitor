@@ -29,6 +29,8 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+      - name: Run unit tests
+        run: python -m unittest discover -s tests -v
       - name: Restore previous state
         env:
           GH_TOKEN: ${{ github.token }}
@@ -51,13 +53,13 @@ jobs:
         run: |
           if [ "$TEST_EMAIL" = "true" ]; then
             python monitor.py --test-email
-          elif [ "$VALIDATE" = "true" ] || [ "${{ github.event_name }}" = "schedule" ]; then
+          elif [ "$VALIDATE" = "true" ]; then
             python monitor.py --validate-only
           else
             python monitor.py
           fi
       - name: Save state for next check
-        if: ${{ success() && github.event_name == 'workflow_dispatch' && !inputs.validate_only && !inputs.test_email }}
+        if: ${{ success() && !inputs.validate_only && !inputs.test_email }}
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
