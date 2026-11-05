@@ -78,13 +78,9 @@ def send_email(hits, *, test=False):
     msg["To"] = receiver
     msg.set_content(
         ("Test email from Apple Stock Monitor." if test else
-         "Star White 256GB iPhone Duo available for pickup:
-" +
-         "
-".join(f"- {v['capacity']} at {v['store']} ({v['part']})" for v in hits.values()))
-        + "
-
-Check availability immediately: " + PRODUCT_URL
+         "Star White 256GB iPhone Duo available for pickup:\n" +
+         "\n".join(f"- {v['capacity']} at {v['store']} ({v['part']})" for v in hits.values()))
+        + "\n\nCheck availability immediately: " + PRODUCT_URL
     )
     with smtplib.SMTP(host, port, timeout=20) as smtp:
         smtp.starttls()
