@@ -20,7 +20,7 @@ class InventoryTests(unittest.TestCase):
         self.assertEqual(parse_inventory(payload(), PARTS), {})
 
     def test_available(self):
-        self.assertEqual(len(parse_inventory(payload("available"), PARTS)), 1)
+        self.assertEqual(len(parse_inventory(payload("available"), PARTS)), len(PARTS))
 
     def test_either_color_can_be_available(self):
         for available_part in PARTS:
