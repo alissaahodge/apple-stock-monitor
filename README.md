@@ -16,6 +16,15 @@ When a store newly becomes available, the email names the store and includes a *
 
 Configure GitHub Actions secrets: `SMTP_HOST=smtp.mail.yahoo.com`, `SMTP_USER` (full authorized Yahoo sender address), `SMTP_PASSWORD` (Yahoo app password), `ALERT_EMAIL` (recipient). Optional `SMTP_PORT` defaults to **465 (implicit TLS)**; 587 uses STARTTLS. Never commit secrets.
 
+## Optional iPhone wake-up alerts
+
+1. Install [Pushover](https://pushover.net/clients) and sign in. Register an application in the [Pushover dashboard](https://pushover.net/).
+2. Add `PUSHOVER_APP_TOKEN` (application API token) and `PUSHOVER_USER_KEY` (your user key) as GitHub Actions secrets.
+3. In Pushover on your iPhone, enable Critical Alerts for emergency messages and grant the iOS permission. Set the alert volume in Pushover.
+4. Manually run the workflow with **Send a repeating Pushover test** checked. Lock the phone and turn on Sleep Focus to confirm you hear it. Acknowledge it in Pushover to stop repeats.
+
+New stock sends one push for the batch. Pushover repeats it every minute for up to five minutes or until acknowledged. Email is still attempted if push fails. If either send fails, inventory state is left pending for the next run, which can repeat an alert that already went through.
+
 ## Tests
 
 In Actions → Apple pickup stock monitor → Run workflow:
