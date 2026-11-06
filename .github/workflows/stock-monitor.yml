@@ -12,6 +12,10 @@ on:
         description: 'Validate Apple inventory response without sending email'
         type: boolean
         default: true
+      test_push:
+        description: 'Send a repeating Pushover test (no stock check)'
+        type: boolean
+        default: false
       test_email:
         description: 'Send an email test (requires secrets)'
         type: boolean
@@ -57,11 +61,16 @@ jobs:
           SMTP_USER: ${{ secrets.SMTP_USER }}
           SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
           ALERT_EMAIL: ${{ secrets.ALERT_EMAIL }}
+          PUSHOVER_APP_TOKEN: ${{ secrets.PUSHOVER_APP_TOKEN }}
+          PUSHOVER_USER_KEY: ${{ secrets.PUSHOVER_USER_KEY }}
+          TEST_PUSH: ${{ inputs.test_push }}
           VALIDATE: ${{ inputs.validate_only }}
           TEST_EMAIL: ${{ inputs.test_email }}
           SIMULATE: ${{ inputs.simulate_available }}
         run: |
-          if [ "$TEST_EMAIL" = "true" ]; then
+          if [ "$TEST_PUSH" = "true" ]; then
+            python monitor.py --test-push
+          elif [ "$TEST_EMAIL" = "true" ]; then
             python monitor.py --test-email
           elif [ "$SIMULATE" = "true" ]; then
             python monitor.py --simulate-available
@@ -71,7 +80,7 @@ jobs:
             python monitor.py
           fi
       - name: Save state for next check
-        if: ${{ success() && github.event_name != 'push' && !inputs.validate_only && !inputs.test_email && !inputs.simulate_available }}
+        if: ${{ success() && github.event_name != 'push' && !inputs.validate_only && !inputs.test_push && !inputs.test_email && !inputs.simulate_available }}
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
