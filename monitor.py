@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Check Apple's US pickup inventory for Star White iPhone Duo, and email on changes."""
+"""Check Apple's US pickup inventory for 256GB iPhone Duo in either color, and email on changes."""
 import argparse
 import json
 import os
@@ -11,7 +11,7 @@ import urllib.request
 from email.message import EmailMessage
 from pathlib import Path
 
-PARTS = {"MK1E4LL/A": "256GB Star White"}
+PARTS = {"MK1E4LL/A": "256GB Star White", "MK1F4LL/A": "256GB Night Sky"}
 ENDPOINT = "https://www.apple.com/shop/retail/pickup-message"
 PRODUCT_URL = "https://www.apple.com/shop/buy-iphone/iphone-duo"
 STATE = Path(os.environ.get("STATE_FILE", ".stock-state.json"))
@@ -72,13 +72,13 @@ def send_email(hits, *, test=False, failure=False):
     msg = EmailMessage()
     msg["Subject"] = ("ACTION REQUIRED: Apple stock monitor failed" if failure else
                       "Apple stock monitor TEST" if test else
-                      "IN STOCK: iPhone Duo 256GB Star White for pickup!")
+                      "IN STOCK: iPhone Duo 256GB for pickup!")
     msg["From"] = username
     msg["To"] = receiver
     msg.set_content(
         ("The scheduled stock monitor failed and may miss availability. Check https://github.com/alissaahodge/apple-stock-monitor/actions . This does not mean sold out." if failure else
          "Test email from Apple Stock Monitor." if test else
-         "Star White 256GB iPhone Duo available for pickup:\n" +
+         "256GB iPhone Duo available for pickup:\n" +
          "\n".join(f"- {v['capacity']} at {v['store']} ({v['part']})\n  Directions: https://www.google.com/maps/search/?api=1&query={urllib.parse.quote('Apple ' + v['store'] + ' 95050')}" for v in hits.values()))
         + "\n\nOrder immediately (choose the listed pickup store): " + PRODUCT_URL + "\nConfirm unlocked / Connect Later at checkout."
     )

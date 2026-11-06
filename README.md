@@ -1,16 +1,16 @@
 # Apple pickup stock monitor
 
-Checks Apple's pickup inventory for **iPhone Duo, Star White, 256GB only** (US part number `MK1E4LL/A`) using **Santa Clara ZIP 95050**. The part number matches current third-party retail listings, but Apple checkout is the authority for unlocked/Connect Later eligibility.
+Checks Apple's pickup inventory for **iPhone Duo, 256GB, either color** (Star White `MK1E4LL/A` or Night Sky `MK1F4LL/A`) using **Santa Clara ZIP 95050**. The part number matches current third-party retail listings, but Apple checkout is the authority for unlocked/Connect Later eligibility.
 
 ## What gets checked
 
-The Apple pickup API returns nearby Apple Stores for ZIP **95050**. The monitor checks **every store returned** for the exact part number and logs each store name and number in the GitHub Actions run. It does not search all Bay Area stores or restrict to a single store.
+The Apple pickup API returns nearby Apple Stores for ZIP **95050**. The monitor checks **every store returned** for both 256GB part numbers and logs each store name and number in the GitHub Actions run. It does not search all Bay Area stores or restrict to a single store.
 
-Scheduled checks are requested every five minutes. GitHub may delay or skip scheduled jobs, and inventory may disappear between checks. The API is unofficial and may change. **No five-minute polling system can guarantee detecting a short-lived restock.**
+Checks are triggered by the external scheduler configured for this repository; GitHub Actions may start late or fail, and inventory may disappear between checks. The API is unofficial and may change. **Polling cannot guarantee detecting a short-lived restock.**
 
 ## What the email contains
 
-When a store newly becomes available, the email names the store and includes a **Google Maps directions/search link** and [Apple's iPhone Duo order page](https://www.apple.com/shop/buy-iphone/iphone-duo). The link opens Apple's product page, not a reserved cart. Choose Star White, 256GB, pickup at the listed store, and verify unlocked/Connect Later at checkout. No email is sent on repeated checks while the same store remains continuously available. If it sells out and restocks, another alert is sent.
+When a store newly becomes available, the email names the store and includes a **Google Maps directions/search link** and [Apple's iPhone Duo order page](https://www.apple.com/shop/buy-iphone/iphone-duo). The link opens Apple's product page, not a reserved cart. Choose the available color shown in the email, 256GB, pickup at the listed store, and verify unlocked/Connect Later at checkout. No email is sent on repeated checks while the same color remains continuously available at a store. Each store/color combination is tracked separately, so a newly available second color also triggers an alert. If a color sells out and restocks, another alert is sent.
 
 ## Email configuration
 
