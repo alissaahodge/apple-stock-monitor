@@ -109,13 +109,47 @@ def send_email(hits, *, test=False, failure=False):
         raise RuntimeError(f"Yahoo SMTP failed during {phase}: {type(exc).__name__}") from None
 
 
+def send_push(hits, *, test=False):
+    token = os.getenv("PUSHOVER_APP_TOKEN")
+    user = os.getenv("PUSHOVER_USER_KEY")
+    if not token and not user and not test:
+        return
+    if not token or not user:
+        raise RuntimeError("Set both PUSHOVER_APP_TOKEN and PUSHOVER_USER_KEY")
+    message = ("Test alert only. No stock was checked." if test else
+               "\n".join(f"{hit['capacity']} at {hit['store']}" for hit in hits.values()))
+    data = urllib.parse.urlencode({
+        "token": token,
+        "user": user,
+        "title": "TEST: Apple stock monitor" if test else "IN STOCK: iPhone Duo pickup",
+        "message": message[:1024],
+        "url": PRODUCT_URL,
+        "url_title": "Open Apple order page",
+        "priority": 2,
+        "retry": 60,
+        "expire": 300,
+    }).encode()
+    try:
+        with urllib.request.urlopen("https://api.pushover.net/1/messages.json", data=data, timeout=20) as response:
+            accepted = json.load(response).get("status") == 1
+    except (OSError, ValueError, AttributeError):
+        raise RuntimeError("Pushover request failed. Check the Actions secrets and Pushover service.") from None
+    if not accepted:
+        raise RuntimeError("Pushover did not accept the alert")
+    print("Pushover accepted the alert")
+
+
 def main():
     parser = argparse.ArgumentParser()
+    parser.add_argument("--test-push", action="store_true")
     parser.add_argument("--test-email", action="store_true")
     parser.add_argument("--validate-only", action="store_true")
     parser.add_argument("--simulate-available", action="store_true")
     parser.add_argument("--failure-email", action="store_true")
     args = parser.parse_args()
+    if args.test_push:
+        send_push({}, test=True)
+        return
     if args.failure_email:
         send_email({}, failure=True)
         print("Failure diagnostic email sent (see GitHub Actions for error)")
@@ -143,7 +177,10 @@ def main():
         raise ValueError("Saved state must be an object")
     new_hits = {key: val for key, val in hits.items() if key not in previous}
     if new_hits:
-        send_email(new_hits)
+        try:
+            send_push(new_hits)
+        finally:
+            send_email(new_hits)
         print(f"Sent email for {len(new_hits)} new stock results")
     else:
         print("No newly available products")
